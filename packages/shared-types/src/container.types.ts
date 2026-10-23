@@ -1,10 +1,10 @@
 export type ServiceCategory =
   | 'WEB_APP'
-  | 'NETWORK_VPN'
   | 'GAME_VOICE'
   | 'DBAAS'
   | 'GIT_DEPLOY'
-  | 'WEB_VDI';
+  | 'WEB_VDI'
+  | 'MESSAGE_BROKER';
 
 export type ContainerLifecycleStatus =
   | 'CREATING'
@@ -21,6 +21,8 @@ export interface ContainerResourceLimits {
   memoryMb: number;
   cpuCores: number;
   pidsLimit?: number;
+  autoScaleEnabled?: boolean;
+  maxMemoryMb?: number;
 }
 
 export interface PortMapping {
@@ -36,16 +38,16 @@ export interface VolumeMount {
 }
 
 /**
- * Container deployment payload sent from api-core to host-agent.
+ * Container deployment payload sent from api-core to a target host-agent node.
  */
 export interface ContainerDeploySpec {
   serviceId: string;
   projectId: string;
+  targetNodeId?: string;
   category: ServiceCategory;
   image: string;
   env: Record<string, string>;
   resources: ContainerResourceLimits;
   ports: PortMapping[];
   volumes: VolumeMount[];
-  linuxCapabilities?: ('NET_ADMIN' | 'SYS_TIME')[];
 }

@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProjectRole {
+  OWNER
+  ADMIN
+  DEVELOPER
+  VIEWER
+}
+
+enum ClusterNodeStatus {
+  ONLINE
+  OFFLINE
+  DRAINING
+}
+
+enum ServiceCategory {
+  WEB_APP
+  GAME_VOICE
+  DBAAS
+  GIT_DEPLOY
+  WEB_VDI
+  MESSAGE_BROKER
+}
+
+enum ContainerStatus {
+  CREATING
+  RUNNING
+  HIBERNATING
+  RESTARTING
+  STOPPED
+  FAILED
+}
+
+enum TransportProtocol {
+  tcp
+  udp
+}
+
+model User {
+  id             String          @id @default(uuid())
+  email          String          @unique
+  passwordHash   String
+  displayName    String
+  githubId       String?         @unique
+  refreshToken   String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  memberships    ProjectMember[]
+  auditLogs      AuditLog[]
+}
+
+model ClusterNode {
+  id             String            @id @default(uuid())
+  name           String
+  hostname       String
+  publicIp       String            @unique
+  agentTokenHash String
+  status         ClusterNodeStatus @default(ONLINE)
+  totalMemoryMb  Int
+  usedMemoryMb   Int               @default(0)
+  cpuCores       Float
+  lastHeartbeat  DateTime          @default(now())
+  createdAt      DateTime          @default(now())
+
+  services       Service[]
+}
+
+model Project {
+  id            String                @id @default(uuid())
+  name          String
+  description   String?
+  dockerNetwork String                @unique
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  members       ProjectMember[]
+  services      Service[]
+  edges         BlueprintEdgeRecord[]
+  auditLogs     AuditLog[]
+}
+
+model ProjectMember {
+  id        String      @id @default(uuid())
+  userId    String
+  projectId String
+  role      ProjectRole @default(DEVELOPER)
+  joinedAt  DateTime    @default(now())
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+}
+
+model Service {
+  id              String            @id @default(uuid())
+  projectId       String
+  project         Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  nodeId          String?
+  node            ClusterNode?      @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+
+  name            String
+  category        ServiceCategory
+  status          ContainerStatus   @default(CREATING)
+  image           String
+  containerId     String?
+  memoryMb        Int               @default(512)
+  cpuCores        Float             @default(0.5)
+  autoScale       Boolean           @default(false)
+  maxMemoryMb     Int               @default(2048)
+  env             Json              @default("{}")
+  canvasX         Float             @default(0)
+  canvasY         Float             @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  ports           PortAllocation[]
+  backups         BackupSnapshot[]
+}
+
+model PortAllocation {
+  id           String            @id @default(uuid())
+  serviceId    String
+  service      Service           @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  internalPort Int
+  externalPort Int               @unique
+  protocol     TransportProtocol @default(tcp)
+}
+
+model BlueprintEdgeRecord {
+  id              String   @id @default(uuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceServiceId String
+  targetServiceId String
+  envInjections   Json     @default("[]")
+}
+
+model BackupSnapshot {
+  id        String   @id @default(uuid())
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  s3Key     String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  action    String
+  ipAddress String?
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+}
