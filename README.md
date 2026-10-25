@@ -1,6 +1,6 @@
 # Dockforge
 
-[English](./README.md) | [Українська](./README.uk.md) | [Русский](./README.ru.md)
+[English](./README.md) | [Українська](./README.uk.md) | [Русский](./README.ru.md) | [API Reference](./docs/API.md)
 
 Self-hosted PaaS for deploying and managing containerized applications, databases, message brokers, and game servers across one or multiple Linux hosts.
 
