@@ -1,5 +1,7 @@
 # Dockforge
 
+[English](./README.md) | [Українська](./README.uk.md) | [Русский](./README.ru.md)
+
 Self-hosted PaaS for deploying and managing containerized applications, databases, message brokers, and game servers across one or multiple Linux hosts.
 
 Built as a monorepo with a NestJS control plane, a lightweight node agent communicating directly with the Docker Engine API (`dockerode`), a Nixpacks-based build worker, and a Vue 3 web client with a visual dependency graph (`Vue Flow`).
