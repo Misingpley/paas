@@ -2,7 +2,7 @@
 
 [English](./README.md) | [Українська](./README.uk.md) | [Русский](./README.ru.md)
 
-Self-hosted PaaS-платформа для розгортання та адміністрування контейнеризованих вебдодатків, баз даних, брокерів повідомлень та ігрових серверів на одному або декількох Linux-вузлах.
+Self-hosted PaaS-платформа для розгортання та адміністрування контейнеризованих вебдодатків, баз даних, брокерів повідомлень та ігрових серверів на одному або декількох Linux-Серверах.
 
 Проєкт побудовано у форматі монорепозиторію: керуюче ядро на NestJS, вузловий агент для прямої роботи з Docker Engine API (`dockerode`), сервіс автоматичної збірки репозиторіїв через Nixpacks та вебклієнт на Vue 3 з візуальним конструктором залежностей (`Vue Flow`).
 
@@ -55,7 +55,7 @@ pnpm install
 cp .env.example .env
 ```
 
-3. Запустіть інфраструктурні сервіси (PostgreSQL 16, Redis 7, MinIO S3, Traefik v3):
+3. Запустіть сервіси інфраструктури (PostgreSQL 16, Redis 7, MinIO S3, Traefik v3):
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d
@@ -64,7 +64,7 @@ docker compose -f docker-compose.dev.yml up -d
    Локальні порти інфраструктури:
    - PostgreSQL: `localhost:5432`
    - Redis: `localhost:6379`
-   - MinIO S3 API: `http://localhost:9000` (Вебконсоль: `http://localhost:9001`)
+   - MinIO S3 API: `http://localhost:9000` (Веб-консоль: `http://localhost:9001`)
    - Traefik HTTP Proxy: `http://localhost:80` (Панель керування: `http://localhost:8080`)
 
 4. Згенеруйте клієнт Prisma та синхронізуйте схему з базою даних:
