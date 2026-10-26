@@ -28,6 +28,16 @@ importers:
         specifier: ^22.0.0
         version: 22.20.5
 
+  apps/host-agent:
+    dependencies:
+      '@paas/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/shared-types
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+
   packages/database:
     dependencies:
       '@prisma/client':
