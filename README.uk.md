@@ -2,7 +2,7 @@
 
 [English](./README.md) | [Українська](./README.uk.md) | [Русский](./README.ru.md) | [Документація API](./docs/API.md)
 
-Self-hosted PaaS-платформа для розгортання та адміністрування контейнеризованих вебдодатків, баз даних, брокерів повідомлень та ігрових серверів на одному або декількох Linux-Серверах.
+Self-hosted PaaS-платформа для розгортання та адміністрування контейнеризованих вебдодатків, баз даних, брокерів повідомлень та ігрових серверів на одному або декількох Linux-вузлах.
 
 Проєкт побудовано у форматі монорепозиторію: керуюче ядро на NestJS, вузловий агент для прямої роботи з Docker Engine API (`dockerode`), сервіс автоматичної збірки репозиторіїв через Nixpacks та вебклієнт на Vue 3 з візуальним конструктором залежностей (`Vue Flow`).
 
@@ -66,6 +66,8 @@ docker compose -f docker-compose.dev.yml up -d
    - Redis: `localhost:6379`
    - MinIO S3 API: `http://localhost:9000` (Веб-консоль: `http://localhost:9001`)
    - Traefik HTTP Proxy: `http://localhost:80` (Панель керування: `http://localhost:8080`)
+   - Панель Control Plane API: `http://localhost:3000/api/docs`
+   - Панель Host Agent Daemon: `http://localhost:3001/agent/docs`
 
 4. Згенеруйте клієнт Prisma та синхронізуйте схему з базою даних:
 
