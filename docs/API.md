@@ -1,13 +1,13 @@
-# Dockforge Control Plane — API Reference (v0.1.0)
+# Dockforge — API Reference (v0.2.0)
 
-Base URL (local development): `http://localhost:3000`  
-Interactive Web Explorer: `http://localhost:3000/api/docs`
+- **Control Plane (`@paas/api-core`)**: `http://localhost:3000` (Interactive Explorer: `http://localhost:3000/api/docs`)
+- **Host Agent Daemon (`@paas/host-agent`)**: `http://localhost:3001` (Interactive Explorer: `http://localhost:3001/agent/docs`)
 
 ---
 
-## 1. Healthcheck
+## Part 1: Control Plane API (`http://localhost:3000`)
 
-### `GET /api/health`
+### 1.1. `GET /api/health`
 Returns control plane status and build version.
 
 **Response (`200 OK`):**
@@ -19,11 +19,7 @@ Returns control plane status and build version.
 }
 ```
 
----
-
-## 2. Secret Vault (`AES-256-GCM`)
-
-### `POST /api/vault/encrypt`
+### 1.2. `POST /api/vault/encrypt`
 Encrypts a key-value map of container environment variables using `AES-256-GCM` (`scrypt` key derivation, 12-byte random `IV`, and 16-byte authentication tag) and verifies decryption integrity.
 
 **Request Body:**
@@ -47,11 +43,7 @@ Encrypts a key-value map of container environment variables using `AES-256-GCM` 
 }
 ```
 
----
-
-## 3. IAM Password Hashing (`scrypt`)
-
-### `POST /api/auth/hash`
+### 1.3. `POST /api/auth/hash`
 Generates a salted `scrypt` password hash (`salt:hash`) and runs a timing-safe verification (`crypto.timingSafeEqual`).
 
 **Request Body:**
@@ -69,11 +61,7 @@ Generates a salted `scrypt` password hash (`salt:hash`) and runs a timing-safe v
 }
 ```
 
----
-
-## 4. Multi-Node Cluster Scheduler & Port Allocator
-
-### `POST /api/cluster/schedule`
+### 1.4. `POST /api/cluster/schedule`
 Evaluates cluster node telemetry (`ONLINE` status and free memory capacity) to select the least-loaded worker host and allocates the next free external `TCP/UDP` port.
 
 **Request Body:**
@@ -101,11 +89,7 @@ Evaluates cluster node telemetry (`ONLINE` status and free memory capacity) to s
 }
 ```
 
----
-
-## 5. Blueprint DAG Execution Planner
-
-### `POST /api/blueprint/plan`
+### 1.5. `POST /api/blueprint/plan`
 Runs Kahn's topological sort algorithm on a project's service dependency graph (`ProjectBlueprint`), checks for cyclic dependencies, and injects internal Docker DNS hostnames (`svc-<sourceNodeId>`) into dependent container environment variables.
 
 **Response (`200 OK`):**
@@ -145,5 +129,86 @@ Runs Kahn's topological sort algorithm on a project's service dependency graph (
       }
     }
   ]
+}
+```
+
+---
+
+## Part 2: Host Agent Daemon API (`http://localhost:3001`)
+
+### 2.1. `POST /agent/docker/spec`
+Generates Docker container labels for Traefik v3 routing and Sablier hibernation alongside Linux `cgroups v2` `HostConfig` resource limits (`Memory`, `NanoCpus`, `PidsLimit`).
+
+**Request Body:**
+```json
+{
+  "subdomain": "nextcloud"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "containerName": "svc-svc-nextcloud-1",
+  "labels": {
+    "paas.project.id": "proj-cloud",
+    "paas.service.id": "svc-nextcloud-1",
+    "traefik.enable": "true",
+    "traefik.http.routers.svc-nextcloud-1.rule": "Host(`nextcloud.paas.local`)",
+    "sablier.enable": "true",
+    "sablier.group": "proj-cloud"
+  },
+  "HostConfig": {
+    "Memory": 1073741824,
+    "NanoCpus": 1500000000,
+    "PidsLimit": 512
+  }
+}
+```
+
+### 2.2. `POST /agent/logs/analyze`
+Classifies a container `stderr` log line against known failure regex rules (`OOM_KILLED`, `PORT_IN_USE`, `DB_AUTH_FAILED`, `CONNECTION_REFUSED`) and returns a structured diagnostic with a recommended recovery action.
+
+**Request Body:**
+```json
+{
+  "serviceId": "svc-minecraft-1",
+  "logLine": "FATAL: java.lang.OutOfMemoryError: Java heap space (exit code 137)"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "matched": true,
+  "diagnostic": {
+    "serviceId": "svc-minecraft-1",
+    "errorCode": "OOM_KILLED",
+    "rawLogExcerpt": "FATAL: java.lang.OutOfMemoryError: Java heap space (exit code 137)",
+    "humanExplanation": "Container exceeded its RAM quota and was terminated by the Linux kernel OOM killer.",
+    "suggestedFix": "INCREASE_MEMORY"
+  }
+}
+```
+
+### 2.3. `POST /agent/telemetry/autoscale`
+Evaluates current container memory saturation (`>= 85%`) and returns the updated memory limit (`+256 MB`, capped at `maxMemoryMb`) for live `docker update` resizing without container restarts.
+
+**Request Body:**
+```json
+{
+  "currentUsageMb": 470,
+  "currentLimitMb": 512,
+  "maxMemoryMb": 2048,
+  "autoScaleEnabled": true
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "scaledUp": true,
+  "previousLimitMb": 512,
+  "newLimitMb": 768
 }
 ```

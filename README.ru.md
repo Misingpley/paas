@@ -66,6 +66,8 @@ docker compose -f docker-compose.dev.yml up -d
    - Redis: `localhost:6379`
    - MinIO S3 API: `http://localhost:9000` (Веб-консоль: `http://localhost:9001`)
    - Traefik HTTP Proxy: `http://localhost:80` (Дашборд: `http://localhost:8080`)
+   - Панель Control Plane API: `http://localhost:3000/api/docs`
+   - Панель Host Agent Daemon: `http://localhost:3001/agent/docs`
 
 4. Сгенерируйте клиент Prisma и синхронизируйте схему с базой данных:
 
