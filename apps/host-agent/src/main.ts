@@ -35,7 +35,7 @@ const agentDocsHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Dockforge Host Agent — Node Daemon Explorer (v0.2.0)</title>
+  <title>Valence Host Agent — Node Daemon Explorer (v0.2.0)</title>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 32px; }
     .container { max-width: 960px; margin: 0 auto; }
@@ -50,7 +50,7 @@ const agentDocsHtml = `<!DOCTYPE html>
 </head>
 <body>
   <div class="container">
-    <h1>Dockforge Host Agent Daemon <span class="badge">v0.2.0</span></h1>
+    <h1>Valence Host Agent Daemon <span class="badge">v0.2.0</span></h1>
     <p>Worker node daemon for Linux cgroups v2 isolation, Traefik/Sablier labels, Smart Log Diagnostics, and Vertical Auto-Scaling.</p>
 
     <div class="card">
@@ -140,4 +140,4 @@ export const agentServer = createServer(async (req, res) => {
 });
 
 const AGENT_PORT = Number(process.env.AGENT_PORT) || 3001;
-agentServer.listen(AGENT_PORT, () => console.log(`Dockforge Host Agent running on http://localhost:${AGENT_PORT}/agent/docs`));
+agentServer.listen(AGENT_PORT, () => console.log(`Valence Host Agent running on http://localhost:${AGENT_PORT}/agent/docs`));

@@ -1,4 +1,4 @@
-# Dockforge — API Reference (v0.2.0)
+# Valence — API Reference (v0.2.0)
 
 - **Control Plane (`@paas/api-core`)**: `http://localhost:3000` (Interactive Explorer: `http://localhost:3000/api/docs`)
 - **Host Agent Daemon (`@paas/host-agent`)**: `http://localhost:3001` (Interactive Explorer: `http://localhost:3001/agent/docs`)
@@ -14,7 +14,7 @@ Returns control plane status and build version.
 ```json
 {
   "status": "ok",
-  "service": "dockforge-api-core",
+  "service": "valence-api-core",
   "version": "0.1.0"
 }
 ```

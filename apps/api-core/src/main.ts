@@ -37,7 +37,7 @@ const apiDocsHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Dockforge Control Plane — API Explorer (v0.1.0)</title>
+  <title>Valence Control Plane — API Explorer (v0.1.0)</title>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 32px; }
     .container { max-width: 960px; margin: 0 auto; }
@@ -52,7 +52,7 @@ const apiDocsHtml = `<!DOCTYPE html>
 </head>
 <body>
   <div class="container">
-    <h1>Dockforge Control Plane API <span class="badge">v0.1.0</span></h1>
+    <h1>Valence Control Plane API <span class="badge">v0.1.0</span></h1>
     <p>Interactive API Explorer for core orchestration, cryptography, and DAG scheduling services.</p>
 
     <div class="card">
@@ -98,7 +98,7 @@ export const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && req.url === '/api/health') {
-      sendJson(res, 200, { status: 'ok', service: 'dockforge-api-core', version: '0.1.0' });
+      sendJson(res, 200, { status: 'ok', service: 'valence-api-core', version: '0.1.0' });
       return;
     }
 
@@ -154,4 +154,4 @@ export const server = createServer(async (req, res) => {
 });
 
 const PORT = Number(process.env.PORT) || 3000;
-server.listen(PORT, () => console.log(`Dockforge API Core running on http://localhost:${PORT}/api/docs`));
+server.listen(PORT, () => console.log(`Valence API Core running on http://localhost:${PORT}/api/docs`));

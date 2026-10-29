@@ -1,4 +1,4 @@
-# Dockforge
+# Valence
 
 [English](./README.md) | [Українська](./README.uk.md) | [Русский](./README.ru.md) | [Документація API](./docs/API.md)
 
