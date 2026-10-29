@@ -1,8 +1,9 @@
-# Valence — API Reference (v0.3.0)
+# Valence — API Reference (v0.4.0)
 
 - **Control Plane (`@paas/api-core`)**: `http://localhost:3000` (Interactive Explorer: `http://localhost:3000/api/docs`)
 - **Host Agent Daemon (`@paas/host-agent`)**: `http://localhost:3001` (Interactive Explorer: `http://localhost:3001/agent/docs`)
 - **Worker Builder (`@paas/worker-builder`)**: `http://localhost:3002` (Interactive Explorer: `http://localhost:3002/builder/docs`)
+- **Web Console (`@paas/web-client`)**: `http://localhost:3003` (Interactive Console: `http://localhost:3003/client/docs`)
 
 ---
 

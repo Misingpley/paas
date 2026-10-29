@@ -69,6 +69,7 @@ docker compose -f docker-compose.dev.yml up -d
    - Панель Control Plane API: `http://localhost:3000/api/docs`
    - Панель Host Agent Daemon: `http://localhost:3001/agent/docs`
    - Панель Worker Builder: `http://localhost:3002/builder/docs`
+   - Веб-консоль (`@paas/web-client`): `http://localhost:3003/client/docs`
 
 4. Сгенерируйте клиент Prisma и синхронизируйте схему с базой данных:
 

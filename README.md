@@ -69,6 +69,7 @@ docker compose -f docker-compose.dev.yml up -d
    - Control Plane API Explorer: `http://localhost:3000/api/docs`
    - Host Agent Daemon Explorer: `http://localhost:3001/agent/docs`
    - Worker Builder Explorer: `http://localhost:3002/builder/docs`
+   - Web Console (`@paas/web-client`): `http://localhost:3003/client/docs`
 
 4. Generate the Prisma client and push the schema to PostgreSQL:
 

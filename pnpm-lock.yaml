@@ -38,6 +38,16 @@ importers:
         specifier: ^22.0.0
         version: 22.20.5
 
+  apps/web-client:
+    dependencies:
+      '@paas/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/shared-types
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+
   apps/worker-builder:
     dependencies:
       '@paas/shared-types':
