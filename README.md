@@ -44,8 +44,8 @@ The platform is split into four runtime applications and two internal libraries:
 1. Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/Misingpley/paas.git
-cd paas
+git clone https://github.com/Misingpley/valence.git
+cd valence
 pnpm install
 ```
 

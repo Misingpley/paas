@@ -44,8 +44,8 @@ Self-hosted PaaS-платформа для розгортання та адмі�
 1. Клонуйте репозиторій та встановіть залежності:
 
 ```bash
-git clone https://github.com/Misingpley/paas.git
-cd paas
+git clone https://github.com/Misingpley/valence.git
+cd valence
 pnpm install
 ```
 
