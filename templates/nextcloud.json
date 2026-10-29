@@ -1,0 +1,20 @@
+{
+  "id": "nextcloud",
+  "name": "Nextcloud Hub",
+  "category": "WEB_APP",
+  "image": "nextcloud:latest",
+  "description": "Self-hosted cloud storage and collaborative office suite.",
+  "defaultResources": {
+    "memoryMb": 1024,
+    "cpuCores": 1.0
+  },
+  "ports": [
+    { "internalPort": 80, "protocol": "tcp" }
+  ],
+  "volumes": [
+    { "volumeName": "nextcloud_html", "mountPath": "/var/www/html" }
+  ],
+  "defaultEnv": {
+    "NEXTCLOUD_ADMIN_USER": "admin"
+  }
+}

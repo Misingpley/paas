@@ -1,0 +1,21 @@
+{
+  "id": "postgresql-16",
+  "name": "PostgreSQL 16",
+  "category": "DBAAS",
+  "image": "postgres:16-alpine",
+  "description": "Relational SQL database with automated S3 volume backups.",
+  "defaultResources": {
+    "memoryMb": 1024,
+    "cpuCores": 1.0
+  },
+  "ports": [
+    { "internalPort": 5432, "protocol": "tcp" }
+  ],
+  "volumes": [
+    { "volumeName": "pg_data", "mountPath": "/var/lib/postgresql/data" }
+  ],
+  "defaultEnv": {
+    "POSTGRES_USER": "postgres",
+    "POSTGRES_DB": "app_db"
+  }
+}

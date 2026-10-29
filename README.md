@@ -68,6 +68,7 @@ docker compose -f docker-compose.dev.yml up -d
    - Traefik HTTP Proxy: `http://localhost:80` (Dashboard: `http://localhost:8080`)
    - Control Plane API Explorer: `http://localhost:3000/api/docs`
    - Host Agent Daemon Explorer: `http://localhost:3001/agent/docs`
+   - Worker Builder Explorer: `http://localhost:3002/builder/docs`
 
 4. Generate the Prisma client and push the schema to PostgreSQL:
 

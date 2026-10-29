@@ -1,0 +1,18 @@
+{
+  "id": "redis-7",
+  "name": "Redis 7",
+  "category": "DBAAS",
+  "image": "redis:7-alpine",
+  "description": "In-memory key-value store, cache, and message broker.",
+  "defaultResources": {
+    "memoryMb": 512,
+    "cpuCores": 0.5
+  },
+  "ports": [
+    { "internalPort": 6379, "protocol": "tcp" }
+  ],
+  "volumes": [
+    { "volumeName": "redis_data", "mountPath": "/data" }
+  ],
+  "defaultEnv": {}
+}

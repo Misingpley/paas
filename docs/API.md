@@ -1,7 +1,8 @@
-# Valence — API Reference (v0.2.0)
+# Valence — API Reference (v0.3.0)
 
 - **Control Plane (`@paas/api-core`)**: `http://localhost:3000` (Interactive Explorer: `http://localhost:3000/api/docs`)
 - **Host Agent Daemon (`@paas/host-agent`)**: `http://localhost:3001` (Interactive Explorer: `http://localhost:3001/agent/docs`)
+- **Worker Builder (`@paas/worker-builder`)**: `http://localhost:3002` (Interactive Explorer: `http://localhost:3002/builder/docs`)
 
 ---
 
@@ -210,5 +211,82 @@ Evaluates current container memory saturation (`>= 85%`) and returns the updated
   "scaledUp": true,
   "previousLimitMb": 512,
   "newLimitMb": 768
+}
+```
+
+---
+
+## Part 3: Worker Builder API (`http://localhost:3002`)
+
+### 3.1. `POST /builder/nixpacks/command`
+Builds a deterministic OCI image tag (`localhost:5000/app-<serviceId>:<shortSha>`) and generates safe argument arrays for `child_process.spawn('nixpacks', args)` without shell interpolation.
+
+**Request Body:**
+```json
+{
+  "serviceId": "web-api",
+  "commitSha": "9f8a7b6c5d4e3f2a1b0c",
+  "workDir": "/tmp/builds/web-api"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "binary": "nixpacks",
+  "imageTag": "localhost:5000/app-web-api:9f8a7b6",
+  "args": [
+    "build",
+    "/tmp/builds/web-api",
+    "--name",
+    "localhost:5000/app-web-api:9f8a7b6"
+  ],
+  "fullCommandPreview": "nixpacks build /tmp/builds/web-api --name localhost:5000/app-web-api:9f8a7b6"
+}
+```
+
+### 3.2. `POST /builder/rollout/evaluate`
+Evaluates container health check status during a Blue-Green deployment rollout, returning either a traffic cutover to the Green container or an automatic rollback to the Blue container.
+
+**Request Body:**
+```json
+{
+  "blueContainerId": "blue-v1",
+  "greenContainerId": "green-v2",
+  "isGreenHealthy": true
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "status": "SWITCHED_TO_GREEN",
+  "activeContainerId": "green-v2",
+  "containerToStopId": "blue-v1"
+}
+```
+
+### 3.3. `GET /builder/templates`
+Returns the catalog of 1-Click App Store JSON manifests from `templates/` (`postgresql`, `redis`, `minecraft-java`, `nextcloud`).
+
+### 3.4. `POST /builder/config/parse`
+Parses `key=value` configuration files (such as `server.properties`) into typed UI form fields (`boolean`, `number`, `string`) and serializes modified fields back to text.
+
+**Request Body:**
+```json
+{
+  "rawText": "# Minecraft Server Properties\nonline-mode=true\nmax-players=20\nmotd=Valence Game Node"
+}
+```
+
+**Response (`200 OK`):**
+```json
+{
+  "parsedFields": [
+    { "key": "online-mode", "value": true, "type": "boolean" },
+    { "key": "max-players", "value": 20, "type": "number" },
+    { "key": "motd", "value": "Valence Game Node", "type": "string" }
+  ],
+  "serializedText": "online-mode=true\nmax-players=20\nmotd=Valence Game Node"
 }
 ```

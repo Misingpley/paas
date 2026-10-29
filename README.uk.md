@@ -68,6 +68,7 @@ docker compose -f docker-compose.dev.yml up -d
    - Traefik HTTP Proxy: `http://localhost:80` (Панель керування: `http://localhost:8080`)
    - Панель Control Plane API: `http://localhost:3000/api/docs`
    - Панель Host Agent Daemon: `http://localhost:3001/agent/docs`
+   - Панель Worker Builder: `http://localhost:3002/builder/docs`
 
 4. Згенеруйте клієнт Prisma та синхронізуйте схему з базою даних:
 

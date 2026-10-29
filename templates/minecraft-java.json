@@ -1,0 +1,22 @@
+{
+  "id": "minecraft-java",
+  "name": "Minecraft Java Server",
+  "category": "GAME_VOICE",
+  "image": "itzg/minecraft-server:latest",
+  "description": "Dedicated Minecraft server with RCON console and visual server.properties editor.",
+  "defaultResources": {
+    "memoryMb": 2048,
+    "cpuCores": 2.0
+  },
+  "ports": [
+    { "internalPort": 25565, "protocol": "tcp" },
+    { "internalPort": 25575, "protocol": "tcp" }
+  ],
+  "volumes": [
+    { "volumeName": "mc_world_data", "mountPath": "/data" }
+  ],
+  "defaultEnv": {
+    "EULA": "TRUE",
+    "ONLINE_MODE": "TRUE"
+  }
+}
