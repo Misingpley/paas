@@ -4,12 +4,16 @@ import { PasswordHashService } from './auth/password-hash.service';
 import { ClusterSchedulerService } from './cluster/cluster-scheduler.service';
 import { PortAllocatorService } from './ports/port-allocator.service';
 import { BlueprintDagService } from './blueprint/blueprint-dag.service';
+import { BackupSnapshotService } from './backup/backup-snapshot.service';
+import { RbacGuardService, ProjectRole, RbacAction } from './iam/rbac-guard.service';
 
 const vaultService = new SecretVaultService();
 const passwordService = new PasswordHashService();
 const schedulerService = new ClusterSchedulerService();
 const portAllocator = new PortAllocatorService();
 const dagService = new BlueprintDagService();
+const backupService = new BackupSnapshotService();
+const rbacService = new RbacGuardService();
 
 function readJsonBody(req: IncomingMessage): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -37,7 +41,7 @@ const apiDocsHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Valence Control Plane — API Explorer (v0.1.0)</title>
+  <title>Valence Control Plane — API Explorer (v1.0.0)</title>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 32px; }
     .container { max-width: 960px; margin: 0 auto; }
@@ -52,8 +56,8 @@ const apiDocsHtml = `<!DOCTYPE html>
 </head>
 <body>
   <div class="container">
-    <h1>Valence Control Plane API <span class="badge">v0.1.0</span></h1>
-    <p>Interactive API Explorer for core orchestration, cryptography, and DAG scheduling services.</p>
+    <h1>Valence Control Plane API <span class="badge">v1.0.0</span></h1>
+    <p>Interactive API Explorer for core orchestration, cryptography, DAG scheduling, S3 backups, and RBAC security services.</p>
 
     <div class="card">
       <div><span class="method">POST</span> <code>/api/vault/encrypt</code> — AES-256-GCM Secret Vault</div>
@@ -78,6 +82,18 @@ const apiDocsHtml = `<!DOCTYPE html>
       <button onclick="runTest('/api/blueprint/plan', {}, 'out-dag')">Execute Test</button>
       <pre id="out-dag">Click "Execute Test" to build DAG execution order...</pre>
     </div>
+
+    <div class="card">
+      <div><span class="method">POST</span> <code>/api/backups/preview</code> — S3 Volume Snapshot Key & Retention Policy</div>
+      <button onclick="runTest('/api/backups/preview', { projectId: 'proj-prod', serviceId: 'svc-postgres', maxKeepCount: 2 }, 'out-backup')">Execute Test</button>
+      <pre id="out-backup">Click "Execute Test" to generate S3 backup key and evaluate retention rotation...</pre>
+    </div>
+
+    <div class="card">
+      <div><span class="method">POST</span> <code>/api/iam/check</code> — RBAC Permission Matrix & Immutable Audit Log</div>
+      <button onclick="runTest('/api/iam/check', { role: 'DEVELOPER', action: 'DEPLOY_SERVICE', userId: 'usr-01', projectId: 'proj-prod' }, 'out-rbac')">Execute Test</button>
+      <pre id="out-rbac">Click "Execute Test" to verify RBAC permissions and generate an audit record...</pre>
+    </div>
   </div>
   <script>
     async function runTest(url, body, targetId) {
@@ -98,7 +114,7 @@ export const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && req.url === '/api/health') {
-      sendJson(res, 200, { status: 'ok', service: 'valence-api-core', version: '0.1.0' });
+      sendJson(res, 200, { status: 'ok', service: 'valence-api-core', version: '1.0.0' });
       return;
     }
 
@@ -144,6 +160,41 @@ export const server = createServer(async (req, res) => {
         ],
       });
       sendJson(res, 200, { executionWaveOrder: ordered.map((n) => n.id), resolvedNodes: ordered });
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/api/backups/preview') {
+      const body = await readJsonBody(req);
+      const projectId = body.projectId || 'proj-prod';
+      const serviceId = body.serviceId || 'svc-postgres';
+      const maxKeepCount = Number(body.maxKeepCount) || 2;
+      const s3ObjectKey = backupService.buildS3ObjectKey(
+        projectId,
+        serviceId,
+        new Date().toISOString(),
+      );
+      const sampleSnapshots = [
+        { snapshotId: 'snap-01', serviceId, sizeBytes: 48200100, createdAtMs: 1700000100000 },
+        { snapshotId: 'snap-02', serviceId, sizeBytes: 51900400, createdAtMs: 1700000300000 },
+        { snapshotId: 'snap-03', serviceId, sizeBytes: 50400200, createdAtMs: 1700000200000 },
+      ];
+      const expiredSnapshots = backupService.selectExpiredSnapshots(sampleSnapshots, maxKeepCount);
+      sendJson(res, 200, { s3ObjectKey, maxKeepCount, expiredSnapshots });
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/api/iam/check') {
+      const body = await readJsonBody(req);
+      const role: ProjectRole = body.role || 'DEVELOPER';
+      const action: RbacAction = body.action || 'DEPLOY_SERVICE';
+      const permitted = rbacService.canPerformAction(role, action);
+      const auditEntry = rbacService.createAuditEntry(
+        body.userId || 'usr-01',
+        body.projectId || 'proj-prod',
+        action,
+        req.socket.remoteAddress || '127.0.0.1',
+      );
+      sendJson(res, 200, { role, action, permitted, auditEntry });
       return;
     }
 

@@ -1,4 +1,4 @@
-# Valence — API Reference (v0.4.0)
+# Valence — API Reference (v1.0.0)
 
 - **Control Plane (`@paas/api-core`)**: `http://localhost:3000` (Interactive Explorer: `http://localhost:3000/api/docs`)
 - **Host Agent Daemon (`@paas/host-agent`)**: `http://localhost:3001` (Interactive Explorer: `http://localhost:3001/agent/docs`)
@@ -17,7 +17,7 @@ Returns control plane status and build version.
 {
   "status": "ok",
   "service": "valence-api-core",
-  "version": "0.1.0"
+  "version": "1.0.0"
 }
 ```
 
@@ -291,3 +291,29 @@ Parses `key=value` configuration files (such as `server.properties`) into typed 
   "serializedText": "online-mode=true\nmax-players=20\nmotd=Valence Game Node"
 }
 ```
+
+### 1.6. `POST /api/backups/preview`
+Generates a sanitized S3 object key (`backups/<projectId>/<serviceId>/snapshot-<safeTimestamp>.tar.gz`) and evaluates volume snapshot retention policy against `maxKeepCount`.
+
+**Request Body:**
+```json
+{
+  "projectId": "proj-prod",
+  "serviceId": "svc-postgres",
+  "maxKeepCount": 2
+}
+```
+
+### 1.7. `POST /api/iam/check`
+Verifies role permissions (`OWNER`, `ADMIN`, `DEVELOPER`, `VIEWER`) against requested operations (`VIEW_TELEMETRY`, `DEPLOY_SERVICE`, `READ_SECRETS`, `DELETE_PROJECT`) and produces an immutable `AuditLogEntry`.
+
+---
+
+## Part 4: Web Console API (`http://localhost:3003`)
+
+- `GET /client/docs` — Multilingual (`RU` / `UA` / `EN`) Web Console UI with live telemetry graphs, interactive 3-step launch schematic, 1-Click App Store, and Smart Log Recovery terminal.
+- `GET /client/telemetry` — Returns formatted cluster node cards with severity classification (`healthy`, `warning`, `critical`).
+- `GET /client/store/templates` — Lists 1-Click App Store templates.
+- `POST /client/store/deploy-preview` — Synthesizes a `ContainerDeploySpec` from a store manifest.
+- `POST /client/canvas/connect` — Snaps canvas coordinates to a 20px grid, connects nodes with automatic `DATABASE_URL` / `BROKER_URL` injection, and detects isolated nodes.
+- `POST /client/logs/recovery` — Formats terminal crash banners and maps error codes to 1-Click remediation actions.

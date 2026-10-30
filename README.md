@@ -32,6 +32,8 @@ The platform is split into four runtime applications and two internal libraries:
 - **Resource Isolation** — enforces per-container memory, CPU (`NanoCpus`), and process count (`PidsLimit`) quotas via Linux `cgroups v2`, placing each project into an isolated Docker bridge network.
 - **Edge Routing & Hibernation** — configures Traefik v3 routers via container labels and supports stopping idle containers with automatic wake-on-HTTP via Sablier.
 - **Log Diagnostics** — parses container `stderr` streams to detect common runtime failures (`OOMKilled`, `EADDRINUSE`, authentication errors, `ECONNREFUSED`) and exposes one-click recovery actions.
+- **S3 Volume Backups & Retention** — builds deterministic S3/MinIO object keys (`backups/<projectId>/<serviceId>/snapshot-<timestamp>.tar.gz`) and enforces automated retention rotation policies.
+- **RBAC & Security Audit Log** — enforces role-based access control (`OWNER`, `ADMIN`, `DEVELOPER`, `VIEWER`) across project operations and generates immutable `AuditLogEntry` records.
 
 ## Prerequisites
 
