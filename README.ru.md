@@ -1,6 +1,6 @@
 # Valence
 
-[English](./README.md) | [Українська](./README.uk.md) | [Русский](./README.ru.md) | [Документация API](./docs/API.md)
+[English](./README.md) | [Українська](./README.uk.md) | [Русский](./README.ru.md) | [Документация API](./docs/API.md) | [**🌐 Интерактивное демо**](https://misingpley.github.io/valence/)
 
 Self-hosted PaaS-платформа для развертывания и управления контейнеризированными веб-приложениями, базами данных, брокерами сообщений и игровыми серверами на одном или нескольких Linux-хостах.
 
