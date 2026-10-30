@@ -1,11 +1,18 @@
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { readdirSync, readFileSync } from 'fs';
 import { resolve } from 'path';
+import { ProjectBlueprint, SmartLogDiagnostic } from '@paas/shared-types';
 import { TelemetryFormatter } from './utils/telemetry-formatter';
 import { TemplateDeployWizard, StoreTemplateManifest } from './store/template-deploy-wizard';
+import { LogRecoveryController } from './logs/log-recovery.controller';
+import { BlueprintCanvasStore } from './canvas/blueprint-canvas.store';
+import { CanvasLayoutHelper } from './canvas/canvas-layout.helper';
 
 const telemetryFormatter = new TelemetryFormatter();
 const deployWizard = new TemplateDeployWizard();
+const logRecovery = new LogRecoveryController();
+const canvasStore = new BlueprintCanvasStore();
+const layoutHelper = new CanvasLayoutHelper();
 
 function readJsonBody(req: IncomingMessage): Promise<any> {
   return new Promise((resolveBody, rejectBody) => {
@@ -75,7 +82,7 @@ const webConsoleHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Valence Web Console — Cluster & 1-Click Store (v0.4.0)</title>
+  <title>Valence Web Console — DAG Architect & Smart Terminal (v0.5.0)</title>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; background: #0b0f19; color: #e2e8f0; margin: 0; padding: 32px; }
     .container { max-width: 1080px; margin: 0 auto; }
@@ -91,9 +98,10 @@ const webConsoleHtml = `<!DOCTYPE html>
     .sev-critical { background: #7f1d1d; color: #f87171; padding: 2px 10px; border-radius: 999px; font-size: 12px; }
     .bar-bg { background: #1f2937; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 6px; }
     .bar-fill { background: #6366f1; height: 100%; }
-    button { background: #4f46e5; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 12px; }
+    button { background: #4f46e5; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 10px; margin-right: 8px; }
     button:hover { background: #4338ca; }
-    pre { background: #050811; border: 1px solid #1e293b; padding: 14px; border-radius: 8px; overflow-x: auto; color: #a5b4fc; font-size: 13px; margin-top: 16px; }
+    pre { background: #050811; border: 1px solid #1e293b; padding: 14px; border-radius: 8px; overflow-x: auto; color: #a5b4fc; font-size: 13px; margin-top: 12px; }
+    .banner { background: #450a0a; border: 1px solid #dc2626; color: #fca5a5; padding: 14px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-family: monospace; }
   </style>
 </head>
 <body>
@@ -101,18 +109,33 @@ const webConsoleHtml = `<!DOCTYPE html>
     <header>
       <div>
         <h1>Valence Web Console</h1>
-        <div style="color:#64748b; font-size:14px; margin-top:4px;">Cluster Telemetry Dashboard & 1-Click App Store Wizard</div>
+        <div style="color:#64748b; font-size:14px; margin-top:4px;">Cluster Telemetry, 1-Click App Store, Visual Blueprint Architect & Smart Terminal</div>
       </div>
-      <span class="badge">v0.4.0</span>
+      <span class="badge">v0.5.0</span>
     </header>
 
     <h2>1. Live Cluster Nodes (TelemetryFormatter)</h2>
     <div id="nodes-grid" class="grid">Loading cluster telemetry...</div>
 
-    <h2>2. 1-Click App Store Wizard (TemplateDeployWizard)</h2>
-    <div id="store-grid" class="grid">Loading store templates...</div>
+    <h2>2. Visual Blueprint Architect — DAG Canvas (BlueprintCanvasStore & CanvasLayoutHelper)</h2>
+    <div class="card">
+      <div>Connect service nodes on the DAG canvas, snap node positions to the 20px grid, and detect isolated containers:</div>
+      <button onclick="runCanvasTest('DBAAS')">Connect PostgreSQL → API Backend</button>
+      <button onclick="runCanvasTest('MESSAGE_BROKER')">Connect RabbitMQ → Worker</button>
+      <pre id="canvas-out">Click a button above to connect nodes on the DAG canvas...</pre>
+    </div>
 
-    <h2>Generated ContainerDeploySpec Preview</h2>
+    <h2>3. Interactive Web Terminal & Smart Log Recovery (LogRecoveryController)</h2>
+    <div class="card">
+      <div id="term-banner" class="banner" style="display:none;"></div>
+      <button onclick="runTerminalCrash('INCREASE_MEMORY', 'OOM_KILLED', 'Container exceeded RAM quota (exit 137)')">Simulate OOM Crash</button>
+      <button onclick="runTerminalCrash('REALLOCATE_PORT', 'PORT_IN_USE', 'Error: listen EADDRINUSE :::3000')">Simulate Port Conflict</button>
+      <button onclick="runTerminalCrash('SYNC_DB_CREDENTIALS', 'DB_AUTH_FAILED', 'FATAL: password authentication failed for user')">Simulate DB Auth Failure</button>
+      <pre id="term-out">Click any crash simulation button to trigger the Smart Log 1-Click Recovery banner...</pre>
+    </div>
+
+    <h2>4. 1-Click App Store Wizard (TemplateDeployWizard)</h2>
+    <div id="store-grid" class="grid">Loading store templates...</div>
     <pre id="spec-preview">Click "Deploy 1-Click App" on any template card above to generate its ContainerDeploySpec...</pre>
   </div>
 
@@ -120,8 +143,7 @@ const webConsoleHtml = `<!DOCTYPE html>
     async function loadDashboard() {
       const nodesRes = await fetch('/client/telemetry');
       const nodesData = await nodesRes.json();
-      const nodesEl = document.getElementById('nodes-grid');
-      nodesEl.innerHTML = nodesData.cards.map(c => \`
+      document.getElementById('nodes-grid').innerHTML = nodesData.cards.map(c => \`
         <div class="card">
           <div class="node-head">
             <span>\${c.hostname}</span>
@@ -134,8 +156,7 @@ const webConsoleHtml = `<!DOCTYPE html>
 
       const storeRes = await fetch('/client/store/templates');
       const storeData = await storeRes.json();
-      const storeEl = document.getElementById('store-grid');
-      storeEl.innerHTML = storeData.templates.map(t => \`
+      document.getElementById('store-grid').innerHTML = storeData.templates.map(t => \`
         <div class="card">
           <div class="node-head">
             <span>\${t.name}</span>
@@ -146,6 +167,29 @@ const webConsoleHtml = `<!DOCTYPE html>
           <button onclick="deployTemplate('\${t.id}')">Deploy 1-Click App</button>
         </div>
       \`).join('');
+    }
+
+    async function runCanvasTest(sourceCategory) {
+      const res = await fetch('/client/canvas/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceCategory, rawPosition: { x: 113, y: 194 } })
+      });
+      const data = await res.json();
+      document.getElementById('canvas-out').textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function runTerminalCrash(suggestedFix, errorCode, humanExplanation) {
+      const res = await fetch('/client/logs/recovery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceId: 'svc-prod-01', errorCode, humanExplanation, suggestedFix })
+      });
+      const data = await res.json();
+      const bannerEl = document.getElementById('term-banner');
+      bannerEl.style.display = 'flex';
+      bannerEl.innerHTML = \`<span>\${data.bannerText}</span><button style="margin:0;background:#dc2626;" onclick="alert('Triggered ' + '\${data.action.apiEndpoint}')">\${data.action.buttonLabel}</button>\`;
+      document.getElementById('term-out').textContent = JSON.stringify(data, null, 2);
     }
 
     async function deployTemplate(templateId) {
@@ -199,6 +243,79 @@ export const webClientServer = createServer(async (req, res) => {
         body.customEnv || {},
       );
       sendJson(res, 200, { templateId: chosen.id, deploySpec });
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/client/canvas/connect') {
+      const body = await readJsonBody(req);
+      const snappedPosition = layoutHelper.snapToGrid(body.rawPosition || { x: 113, y: 194 }, 20);
+      const sampleBlueprint: ProjectBlueprint = {
+        projectId: 'proj-canvas-demo',
+        nodes: [
+          {
+            id: 'node-source',
+            label: 'Upstream Service',
+            position: snappedPosition,
+            spec: {
+              category: body.sourceCategory || 'DBAAS',
+              image: 'postgres:16-alpine',
+              env: {},
+              resources: { memoryMb: 1024, cpuCores: 1 },
+              ports: [],
+              volumes: [],
+            },
+          },
+          {
+            id: 'node-target',
+            label: 'API Consumer',
+            position: { x: 320, y: 200 },
+            spec: {
+              category: 'WEB_APP',
+              image: 'node:22-alpine',
+              env: {},
+              resources: { memoryMb: 512, cpuCores: 1 },
+              ports: [],
+              volumes: [],
+            },
+          },
+          {
+            id: 'node-unconnected-redis',
+            label: 'Isolated Redis Cache',
+            position: { x: 500, y: 80 },
+            spec: {
+              category: 'DBAAS',
+              image: 'redis:7-alpine',
+              env: {},
+              resources: { memoryMb: 256, cpuCores: 0.5 },
+              ports: [],
+              volumes: [],
+            },
+          },
+        ],
+        edges: [],
+      };
+      const createdEdge = canvasStore.connectNodes(sampleBlueprint, 'node-source', 'node-target');
+      const isolatedNodeIds = layoutHelper.findIsolatedNodes(sampleBlueprint);
+      sendJson(res, 200, {
+        snappedSourcePosition: snappedPosition,
+        createdEdge,
+        isolatedNodeIds,
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/client/logs/recovery') {
+      const body = await readJsonBody(req);
+      const diagnostic: SmartLogDiagnostic = {
+        serviceId: body.serviceId || 'svc-prod-01',
+        errorCode: body.errorCode || 'OOM_KILLED',
+        rawLogExcerpt: 'Container exit 137',
+        humanExplanation: body.humanExplanation || 'Container exceeded memory limit',
+        suggestedFix: body.suggestedFix || 'INCREASE_MEMORY',
+      };
+      const bannerText = logRecovery.formatTerminalBanner(diagnostic);
+      const action = logRecovery.buildRecoveryAction(diagnostic);
+      sendJson(res, 200, { bannerText, action });
       return;
     }
 
