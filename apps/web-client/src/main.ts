@@ -7,12 +7,55 @@ import { TemplateDeployWizard, StoreTemplateManifest } from './store/template-de
 import { LogRecoveryController } from './logs/log-recovery.controller';
 import { BlueprintCanvasStore } from './canvas/blueprint-canvas.store';
 import { CanvasLayoutHelper } from './canvas/canvas-layout.helper';
+import { WorkspaceSessionService } from './auth/workspace-session.service';
+import { dashboardConsoleHtml } from './dashboard-ui';
+import { randomBytes, createCipheriv, scryptSync } from 'crypto';
 
 const telemetryFormatter = new TelemetryFormatter();
 const deployWizard = new TemplateDeployWizard();
 const logRecovery = new LogRecoveryController();
 const canvasStore = new BlueprintCanvasStore();
 const layoutHelper = new CanvasLayoutHelper();
+const sessionService = new WorkspaceSessionService();
+
+const managedServicesList = [
+  {
+    id: 'svc-pg-01',
+    name: 'postgres-16',
+    image: 'postgres:16-alpine',
+    status: 'RUNNING',
+    memoryMb: 1024,
+    domain: 'internal:5432',
+    nodeHostname: 'eu-central-worker-01',
+  },
+  {
+    id: 'svc-api-01',
+    name: 'api-gateway',
+    image: 'github:nixpacks/node:22',
+    status: 'RUNNING',
+    memoryMb: 512,
+    domain: 'https://api.paas.local',
+    nodeHostname: 'eu-central-worker-01',
+  },
+  {
+    id: 'svc-redis-01',
+    name: 'redis-broker',
+    image: 'redis:7-alpine',
+    status: 'RUNNING',
+    memoryMb: 256,
+    domain: 'internal:6379',
+    nodeHostname: 'eu-central-worker-02',
+  },
+  {
+    id: 'svc-mc-01',
+    name: 'minecraft-survival',
+    image: 'itzg/minecraft-server:java21',
+    status: 'SLEEPING',
+    memoryMb: 4096,
+    domain: 'mc.paas.local:25565',
+    nodeHostname: 'us-east-game-01',
+  },
+];
 
 function readJsonBody(req: IncomingMessage): Promise<any> {
   return new Promise((resolveBody, rejectBody) => {
@@ -825,20 +868,17 @@ const hybridConsoleHtml = `<!DOCTYPE html>
         </a>
         <div class="nav-links">
           <a href="#wave-reactor" data-i18n="nav_s1">&sect;1 Порядок запуска</a>
-          <a href="#studio-workspace" data-i18n="nav_s2">&sect;2 Надежность</a>
-          <a href="#cluster-telemetry" data-i18n="nav_s3">&sect;3 Серверы</a>
-          <a href="#app-store" data-i18n="nav_s4">&sect;4 Каталог</a>
+          <a href="#studio-workspace" data-i18n="nav_s2">&sect;2 Преимущества</a>
           <a href="http://localhost:3000/api/docs" target="_blank">API Docs</a>
         </div>
       </div>
       <div class="nav-right">
+        <span style="color:var(--ice-cyan); margin-right:8px;">[00:03 // SECTOR EU-01]</span>
         <div class="lang-switch">
           <button class="lang-btn active" id="lang-ru" onclick="setLanguage('ru')">RU</button>
           <button class="lang-btn" id="lang-uk" onclick="setLanguage('uk')">UA</button>
           <button class="lang-btn" id="lang-en" onclick="setLanguage('en')">EN</button>
         </div>
-        <button class="btn-white" data-i18n="nav_deploy" onclick="triggerHeroDeploy()">Deploy Stack</button>
-        <button class="btn-outline" style="padding:8px 14px;" onclick="window.open('http://localhost:3002/builder/docs', '_blank')">Builder API</button>
       </div>
     </nav>
   </div>
@@ -846,7 +886,7 @@ const hybridConsoleHtml = `<!DOCTYPE html>
   <div class="container">
     <!-- =================================================================
          1. HERO: NEWSPAPER PRESS CLIPPING WATERMARK + NORMAL PRODUCT COPY
-            + RIGHT SATELLITE RECON PANEL
+            + INLINE LOGIN / REGISTRATION BOX + RIGHT SATELLITE RECON PANEL
          ================================================================= -->
     <section class="hero-split">
       <!-- Ghosted Newspaper Column Clipping in Background -->
@@ -869,13 +909,39 @@ const hybridConsoleHtml = `<!DOCTYPE html>
           <b>Valence</b> — это удобная платформа для запуска сайтов, бэкендов, баз данных и игровых серверов на вашем собственном оборудовании или VPS. Подключите репозиторий с кодом или выберите готовое приложение из каталога — система сама соберет проект, свяжет его с базой данных, настроит домен и проследит за стабильной работой без переплаты за облака.
         </p>
 
-        <div class="press-quote" data-i18n="hero_quote">
-          "СВОДКА (§1.4): АВТОМАТИЧЕСКАЯ СБОРКА ПОСЛЕ GIT PUSH, ОБНОВЛЕНИЕ САЙТОВ БЕЗ СЕКУНДЫ ПРОСТОЯ И ИСПРАВЛЕНИЕ СБОЕВ В ОДИН КЛИК — ПОЛНЫЙ КОНТРОЛЬ НАД ВАШИМ СЕРВЕРОМ."
-        </div>
+        <!-- INLINE LOGIN / REGISTRATION PANEL RIGHT ON THE HERO SCREEN -->
+        <div style="position:relative; z-index:2; max-width:510px; background:#07111a; border:1px solid var(--ice-cyan); box-shadow:0 16px 40px rgba(0,0,0,0.85); padding:18px 20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line-bright); padding-bottom:10px; margin-bottom:14px;">
+            <div style="display:flex; gap:8px;">
+              <button id="tab-auth-login" class="btn-cyan" style="padding:5px 12px; font-size:10.5px;" onclick="switchAuthMode('login')" data-i18n="auth_tab_login">Вход</button>
+              <button id="tab-auth-reg" class="btn-outline" style="padding:5px 12px; font-size:10.5px;" onclick="switchAuthMode('register')" data-i18n="auth_tab_reg">Регистрация</button>
+            </div>
+            <span style="font-family:var(--font-mono); font-size:10px; color:var(--ice-cyan);">ACCESS GATE // &sect;1</span>
+          </div>
 
-        <div class="hero-ctas">
-          <button class="btn-cyan" data-i18n="hero_btn_primary" onclick="triggerHeroDeploy()">$ Запустить проект</button>
-          <button class="btn-outline" data-i18n="hero_btn_secondary" onclick="document.getElementById('studio-workspace').scrollIntoView()">Панель управления</button>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="display:block; font-family:var(--font-mono); font-size:10px; color:var(--ice-cyan); margin-bottom:4px;" data-i18n="auth_lbl_email">EMAIL АДМИНИСТРАТОРА</label>
+              <input id="auth-email" value="admin@valence.local" style="width:100%; background:#040a10; border:1px solid var(--line-bright); color:#fff; padding:8px 10px; font-family:var(--font-mono); font-size:12px;" />
+            </div>
+            <div>
+              <label style="display:block; font-family:var(--font-mono); font-size:10px; color:var(--ice-cyan); margin-bottom:4px;" data-i18n="auth_lbl_pass">ПАРОЛЬ</label>
+              <input id="auth-pass" type="password" value="••••••••••••" style="width:100%; background:#040a10; border:1px solid var(--line-bright); color:#fff; padding:8px 10px; font-family:var(--font-mono); font-size:12px;" />
+            </div>
+          </div>
+
+          <div id="auth-role-wrap" style="display:none; margin-bottom:10px;">
+            <label style="display:block; font-family:var(--font-mono); font-size:10px; color:var(--amber); margin-bottom:4px;" data-i18n="auth_lbl_role">РОЛЬ В ПРОЕКТЕ</label>
+            <select id="auth-role" style="width:100%; background:#040a10; border:1px solid var(--line-bright); color:#fff; padding:8px 10px; font-family:var(--font-mono); font-size:12px;">
+              <option value="OWNER">OWNER (Владелец кластера — полный доступ)</option>
+              <option value="ADMIN">ADMIN (Администратор — деплой и секреты)</option>
+              <option value="DEVELOPER">DEVELOPER (Разработчик — деплой сервисов)</option>
+            </select>
+          </div>
+
+          <button id="auth-submit-btn" class="btn-cyan" style="width:100%; padding:11px; margin-top:4px;" onclick="submitAuthForm()" data-i18n="auth_btn_submit">
+            Войти в панель управления серверами &rarr;
+          </button>
         </div>
       </div>
 
@@ -1183,62 +1249,6 @@ const hybridConsoleHtml = `<!DOCTYPE html>
             </div>
           </div>
         </div>
-
-        <div class="bento-full">
-          <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-            <div>
-              <h3 class="cell-title" data-i18n="b4_title">Визуальный конструктор связей</h3>
-              <p class="cell-desc" data-i18n="b4_desc">Соедините базу данных с вашим приложением — платформа автоматически создаст внутреннюю сеть и пропишет настройки подключения.</p>
-            </div>
-            <div>
-              <button class="btn-outline" data-i18n="b4_btn1" onclick="runCanvasTest('DBAAS')">Связать Postgres &rarr; API</button>
-              <button class="btn-outline" data-i18n="b4_btn2" onclick="runCanvasTest('MESSAGE_BROKER')">Связать Очередь &rarr; Воркер</button>
-            </div>
-          </div>
-          <pre id="canvas-out" style="display:none;"></pre>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section 4: Cluster Telemetry Bento Grid -->
-    <div id="cluster-telemetry" style="margin-top:48px;">
-      <div class="bracket-tag" data-i18n="sec4_tag">[ &sect;3 // МОНИТОРИНГ СЕРВЕРОВ В РЕАЛЬНОМ ВРЕМЕНИ ]</div>
-      <div class="bento-box">
-        <div id="nodes-grid" class="bento-row-3">Loading cluster telemetry...</div>
-      </div>
-    </div>
-
-    <!-- Section 5: 1-Click App Store Bento Grid -->
-    <div id="app-store" style="margin-top:48px;">
-      <div class="bracket-tag" data-i18n="sec5_tag">[ &sect;4 // КАТАЛОГ ГОТОВЫХ ПРИЛОЖЕНИЙ В 1 КЛИК ]</div>
-      <div class="bento-box">
-        <div id="store-grid" class="bento-row-4">Loading store templates...</div>
-        <div id="spec-wrap" class="bento-full" style="display:none;">
-          <div class="cell-title">Generated ContainerDeploySpec</div>
-          <pre id="spec-preview"></pre>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section 6: Smart Log Terminal Bento Block -->
-    <div id="observability-sec" style="margin-top:48px;">
-      <div class="bracket-tag" data-i18n="sec6_tag">[ &sect;5 // ДИАГНОСТИКА СБОЕВ И БЫСТРОЕ ВОССТАНОВЛЕНИЕ ]</div>
-      <div class="bento-box">
-        <div class="bento-full">
-          <div id="term-banner" class="banner" style="display:none;"></div>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <h3 class="cell-title" data-i18n="sec6_title">Автоматический помощник при сбоях</h3>
-              <p class="cell-desc" data-i18n="sec6_desc">Нажмите на любой пример сбоя ниже, чтобы увидеть, как система распознает проблему и предлагает решение в 1 клик.</p>
-            </div>
-            <div>
-              <button class="btn-outline" data-i18n="crash_btn1" onclick="runTerminalCrash('INCREASE_MEMORY', 'OOM_KILLED', 'Container exceeded RAM quota (exit 137)')">Нехватка памяти (OOM)</button>
-              <button class="btn-outline" data-i18n="crash_btn2" onclick="runTerminalCrash('REALLOCATE_PORT', 'PORT_IN_USE', 'Error: listen EADDRINUSE :::3000')">Конфликт порта</button>
-              <button class="btn-outline" data-i18n="crash_btn3" onclick="runTerminalCrash('SYNC_DB_CREDENTIALS', 'DB_AUTH_FAILED', 'FATAL: password authentication failed')">Ошибка пароля БД</button>
-            </div>
-          </div>
-          <pre id="term-out">Waiting for container stderr events...</pre>
-        </div>
       </div>
     </div>
   </div>
@@ -1434,10 +1444,13 @@ const hybridConsoleHtml = `<!DOCTYPE html>
     const i18nDict = {
       ru: {
         nav_s1: '§1 Порядок запуска',
-        nav_s2: '§2 Надежность',
-        nav_s3: '§3 Серверы',
-        nav_s4: '§4 Каталог',
-        nav_deploy: 'Запустить',
+        nav_s2: '§2 Преимущества',
+        auth_tab_login: 'Вход',
+        auth_tab_reg: 'Регистрация',
+        auth_lbl_email: 'EMAIL АДМИНИСТРАТОРА',
+        auth_lbl_pass: 'ПАРОЛЬ',
+        auth_lbl_role: 'РОЛЬ В ПРОЕКТЕ',
+        auth_btn_submit: 'Войти в панель управления серверами →',
         hero_badge: 'АРХИВ ПРЕССЫ // ВЫП. IV • ОБЗОР ПЛАТФОРМЫ • §1',
         hero_title: 'ВАШ КОД.<br/>ВАШИ <span class="censor-bar">СЕРВЕРЫ.</span>',
         hero_sub: '<b>Valence</b> — это удобная платформа для запуска сайтов, бэкендов, баз данных и игровых серверов на вашем собственном оборудовании или VPS. Подключите репозиторий с кодом или выберите готовое приложение из каталога — система сама соберет проект, свяжет его с базой данных, настроит домен и проследит за стабильной работой без переплаты за облака.',
@@ -1488,10 +1501,13 @@ const hybridConsoleHtml = `<!DOCTYPE html>
       },
       uk: {
         nav_s1: '§1 Порядок запуску',
-        nav_s2: '§2 Надійність',
-        nav_s3: '§3 Сервери',
-        nav_s4: '§4 Каталог',
-        nav_deploy: 'Запустити',
+        nav_s2: '§2 Переваги',
+        auth_tab_login: 'Вхід',
+        auth_tab_reg: 'Реєстрація',
+        auth_lbl_email: 'EMAIL АДМІНІСТРАТОРА',
+        auth_lbl_pass: 'ПАРОЛЬ',
+        auth_lbl_role: 'РОЛЬ У ПРОЄКТІ',
+        auth_btn_submit: 'Увійти в панель керування серверами →',
         hero_badge: 'АРХІВ ПРЕСИ // ВИП. IV • ОГЛЯД ПЛАТФОРМИ • §1',
         hero_title: 'ВАШ КОД.<br/>ВАШІ <span class="censor-bar">СЕРВЕРИ.</span>',
         hero_sub: '<b>Valence</b> — це зручна платформа для запуску сайтів, бекендів, баз даних та ігрових серверів на вашому власному обладнанні або VPS. Підключіть репозиторій із кодом або оберіть готовий застосунок із каталогу — система сама збере проєкт, з’єднає його з базою даних, налаштує домен і подбає про стабільну роботу без переплати за хмари.',
@@ -1542,10 +1558,13 @@ const hybridConsoleHtml = `<!DOCTYPE html>
       },
       en: {
         nav_s1: '§1 Launch Order',
-        nav_s2: '§2 Reliability',
-        nav_s3: '§3 Servers',
-        nav_s4: '§4 App Catalog',
-        nav_deploy: 'Deploy Stack',
+        nav_s2: '§2 Key Benefits',
+        auth_tab_login: 'Sign In',
+        auth_tab_reg: 'Register',
+        auth_lbl_email: 'ADMIN EMAIL',
+        auth_lbl_pass: 'PASSWORD',
+        auth_lbl_role: 'PROJECT ROLE',
+        auth_btn_submit: 'Open Server Control Panel →',
         hero_badge: 'PRESS ARCHIVE // VOL. IV • PLATFORM OVERVIEW • §1',
         hero_title: 'YOUR CODE.<br/>YOUR <span class="censor-bar">SERVERS.</span>',
         hero_sub: '<b>Valence</b> is an easy-to-use platform for running websites, backends, databases, and game servers on your own hardware or VPS. Connect your GitHub repository or pick a ready-made app from the catalog — the platform automatically builds your project, links the database, sets up your domain, and keeps everything running smoothly without cloud lock-in.',
@@ -1665,6 +1684,9 @@ const hybridConsoleHtml = `<!DOCTYPE html>
       });
 
       selectWaveStepByNum(currentStepNum);
+      if (typeof switchAuthMode === 'function') {
+        switchAuthMode(currentAuthMode);
+      }
     }
 
     function selectWaveStepByNum(stepNum) {
@@ -1743,89 +1765,44 @@ const hybridConsoleHtml = `<!DOCTYPE html>
       }
     }
 
-    async function loadDashboard() {
-      const nodesRes = await fetch('/client/telemetry');
-      const nodesData = await nodesRes.json();
-      const stateLabels = {
-        healthy: 'CRYO // NOMINAL',
-        warning: 'IONIZED // ELEVATED',
-        critical: 'PLASMA // SATURATED'
-      };
-      document.getElementById('nodes-grid').innerHTML = nodesData.cards.map(c => \`
-        <div class="bento-cell">
-          <div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-              <h3 class="cell-title" style="margin:0;">\${c.hostname}</h3>
-              <span class="sev-\${c.severity}">\${stateLabels[c.severity]}</span>
-            </div>
-            <p class="cell-desc">Node ID: <code>\${c.nodeId}</code></p>
-            <div class="bar-bg"><div class="bar-fill bar-\${c.severity}" style="width:\${c.memoryUsagePercent}%"></div></div>
-          </div>
-          <div class="cell-meta">
-            <span>RAM SATURATION</span>
-            <span style="color:#fff; font-weight:700;">\${c.memoryUsagePercent}%</span>
-          </div>
-        </div>
-      \`).join('');
+    let currentAuthMode = 'login';
 
-      const storeRes = await fetch('/client/store/templates');
-      const storeData = await storeRes.json();
-      document.getElementById('store-grid').innerHTML = storeData.templates.map(t => \`
-        <div class="bento-cell">
-          <div>
-            <h3 class="cell-title">\${t.name}</h3>
-            <p class="cell-desc">Preconfigured \${t.category} container (\${t.defaultMemoryMb} MB RAM, \${t.defaultCpuCores} CPU).</p>
-          </div>
-          <div class="cell-meta">
-            <span><code>\${t.image}</code></span>
-            <button class="btn-outline" style="padding:5px 10px; font-size:10.5px;" onclick="deployTemplate('\${t.id}')">Deploy</button>
-          </div>
-        </div>
-      \`).join('');
+    function switchAuthMode(mode) {
+      currentAuthMode = mode;
+      const loginBtn = document.getElementById('tab-auth-login');
+      const regBtn = document.getElementById('tab-auth-reg');
+      const roleWrap = document.getElementById('auth-role-wrap');
+      const submitBtn = document.getElementById('auth-submit-btn');
+
+      if (mode === 'register') {
+        loginBtn.className = 'btn-outline';
+        regBtn.className = 'btn-cyan';
+        roleWrap.style.display = 'block';
+        submitBtn.textContent = currentLang === 'en'
+          ? 'Create Account & Open Control Panel →'
+          : currentLang === 'uk'
+          ? 'Створити акаунт і відкрити панель →'
+          : 'Создать аккаунт и открыть панель →';
+      } else {
+        loginBtn.className = 'btn-cyan';
+        regBtn.className = 'btn-outline';
+        roleWrap.style.display = 'none';
+        submitBtn.textContent = i18nDict[currentLang].auth_btn_submit;
+      }
     }
 
-    async function runCanvasTest(sourceCategory) {
-      const res = await fetch('/client/canvas/connect', {
+    async function submitAuthForm() {
+      const email = document.getElementById('auth-email').value || 'admin@valence.local';
+      const role = document.getElementById('auth-role').value || 'OWNER';
+      const res = await fetch('/client/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceCategory, rawPosition: { x: 113, y: 194 } })
+        body: JSON.stringify({ email, role })
       });
       const data = await res.json();
-      const out = document.getElementById('canvas-out');
-      out.style.display = 'block';
-      out.textContent = JSON.stringify(data, null, 2);
+      localStorage.setItem('valence_session', JSON.stringify(data.session));
+      window.location.href = '/dashboard';
     }
-
-    async function runTerminalCrash(suggestedFix, errorCode, humanExplanation) {
-      const res = await fetch('/client/logs/recovery', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceId: 'svc-prod-01', errorCode, humanExplanation, suggestedFix })
-      });
-      const data = await res.json();
-      const bannerEl = document.getElementById('term-banner');
-      bannerEl.style.display = 'flex';
-      bannerEl.innerHTML = \`<span>\${data.bannerText}</span><button class="btn-cyan" style="padding:6px 12px;" onclick="alert('Triggered ' + '\${data.action.apiEndpoint}')">\${data.action.buttonLabel}</button>\`;
-      document.getElementById('term-out').textContent = JSON.stringify(data, null, 2);
-    }
-
-    async function deployTemplate(templateId) {
-      const res = await fetch('/client/store/deploy-preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateId,
-          projectId: 'proj-production',
-          serviceId: 'svc-' + templateId + '-01',
-          customEnv: { DEPLOYED_BY: 'valence-web-console' }
-        })
-      });
-      const data = await res.json();
-      document.getElementById('spec-wrap').style.display = 'block';
-      document.getElementById('spec-preview').textContent = JSON.stringify(data, null, 2);
-    }
-
-    loadDashboard();
   </script>
 </body>
 </html>`;
@@ -1835,6 +1812,97 @@ export const webClientServer = createServer(async (req, res) => {
     if (req.method === 'GET' && (req.url === '/' || req.url === '/client/docs')) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(hybridConsoleHtml);
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/dashboard') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(dashboardConsoleHtml);
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/client/auth/session') {
+      const body = await readJsonBody(req);
+      const session = sessionService.issueSession(body.email || 'admin@valence.local', body.role || 'OWNER');
+      sendJson(res, 200, { session });
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/client/nodes/register') {
+      const body = await readJsonBody(req);
+      const newNode = sessionService.registerServerNode(
+        body.hostname || 'worker-node-new',
+        body.publicIp || '10.10.0.99',
+        Number(body.totalMemoryMb) || 16384,
+        Number(body.cpuCores) || 8,
+      );
+      sampleClusterNodes.push(newNode as any);
+      sendJson(res, 200, { registeredNode: newNode, totalNodes: sampleClusterNodes.length });
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/client/services') {
+      sendJson(res, 200, { services: managedServicesList });
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/client/services/deploy') {
+      const body = await readJsonBody(req);
+      const targetNode = sampleClusterNodes[sampleClusterNodes.length - 1] || sampleClusterNodes[0];
+      const newSvc = {
+        id: 'svc-' + Date.now(),
+        name: (body.name || 'custom-service').trim(),
+        image: body.image || 'github:nixpacks/node:22',
+        status: 'RUNNING',
+        memoryMb: Number(body.memoryMb) || 1024,
+        domain: (body.domain || 'app.paas.local').trim(),
+        nodeHostname: targetNode.hostname,
+      };
+      managedServicesList.unshift(newSvc);
+      targetNode.usedMemoryMb = Math.min(targetNode.totalMemoryMb, targetNode.usedMemoryMb + newSvc.memoryMb);
+      targetNode.activeContainers += 1;
+      sendJson(res, 200, { deployedService: newSvc });
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/client/services/toggle') {
+      const body = await readJsonBody(req);
+      const svc = managedServicesList.find((s) => s.id === body.serviceId);
+      if (svc) {
+        svc.status = svc.status === 'RUNNING' ? 'SLEEPING' : 'RUNNING';
+      }
+      sendJson(res, 200, { updatedService: svc });
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/client/vault/preview') {
+      const body = await readJsonBody(req);
+      const keyBuf = scryptSync('valence-master-secret', 'valence-salt', 32);
+      const iv = randomBytes(12);
+      const cipher = createCipheriv('aes-256-gcm', keyBuf, iv);
+      const payload = JSON.stringify({ [body.key || 'SECRET']: body.value || 'value' });
+      const encrypted = Buffer.concat([cipher.update(payload, 'utf8'), cipher.final()]);
+      const tag = cipher.getAuthTag();
+      sendJson(res, 200, {
+        algorithm: 'AES-256-GCM',
+        variableKey: body.key,
+        encryptedVaultRecord: `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`,
+        status: 'STORED_AND_SEALED',
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/client/backups/trigger') {
+      const body = await readJsonBody(req);
+      const safeTs = new Date().toISOString().replace(/[:.]/g, '-');
+      const s3ObjectKey = `backups/${body.projectId || 'proj-prod'}/${body.serviceId || 'postgres-16'}/snapshot-${safeTs}.tar.gz`;
+      sendJson(res, 200, {
+        status: 'SNAPSHOT_UPLOADED_TO_S3',
+        bucket: 'valence-backups',
+        s3ObjectKey,
+        retentionPolicy: 'KEEP_LAST_5_ARCHIVES',
+        timestampIso: new Date().toISOString(),
+      });
       return;
     }
 
